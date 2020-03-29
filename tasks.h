@@ -3,11 +3,11 @@
 void updateInterval(float battery){
   #ifndef DEBUG
     if(battery >= 4.32){ // more than 50% - reports every 5min - 1min frequency - 5sec sampling
-      interval = 5;
-    }else if(battery >= 3.7){ // more than 25% - reports every 25min - 5min frequency - 25sec sampling
-      interval = 25;
-    }else{ // less than 25% - reports every 50min - 10min frequency - 60sec sampling
       interval = 60;
+    }else if(battery >= 3.7){ // more than 25% - reports every 25min - 5min frequency - 25sec sampling
+      interval = 300;
+    }else{ // less than 25% - reports every 50min - 10min frequency - 60sec sampling
+      interval = 600;
     }
   #endif
 }
