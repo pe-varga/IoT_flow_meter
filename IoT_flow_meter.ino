@@ -1,7 +1,7 @@
 //#define DEBUG
 
 #ifdef DEBUG
-#define WHITE_LED 10
+  #define WHITE_LED 10
 #endif
 
 #define BATTERY_ADC A0
@@ -23,7 +23,7 @@ int counter = 0;
 int interval = 60;
 int mode = 1;
 float battery;
-float pressures[11];
+float pressures[6];
 
 
 void setup() {
@@ -79,7 +79,7 @@ void loop() {
   #endif
 
   // Determine power scheme for next batch based on battery life
-  if(counter == 10){
+  if(counter == 5){
     battery = readBattery();
     updateInterval(battery); 
   }
@@ -92,16 +92,16 @@ void loop() {
   // Read pressure
   pressures[counter] = readPressure(25);
 
-  if(counter == 10){  // end of batch
+  if(counter == 5){  // end of batch
 
     // Convert pressure readings to flow rates in mm/h multiplied by 100, and find the index of the first flow that is greater than ~2mm/h
-    int flows[10];
-    int index = 10;
-    for(int i=0; i<10; i++){
+    int flows[5];
+    int index = 5;
+    for(int i=0; i<5; i++){
       flows[i] = (int)round(100 * (3600 / interval) * (pressures[i+1] - pressures[i]) / (4 * 9.80665));
       if(flows[i] < 200){ //flow rate is smaller than ~2mm/h, discard reading
         flows[i] = 0;
-      }else if(index == 10){
+      }else if(index == 5){
         index = i;
       }
     }
@@ -115,8 +115,9 @@ void loop() {
       // Pack payload in 12 bytes
       payload[0] = ((mode << 6) & 0xC0) + (((int)round(100 * (temperature + 55)) >> 8) & 0x3F); // mode - 2 bits, temp - 6 bits
       payload[1] = (int)round(100 * (temperature + 55)) & 0xFF; // temp - 1 byte
-      for(int i=2; i<12; i++){ // flow rates - 10 * 1 byte
-        payload[i] = flows[i-2] & 0xFF;
+      for(int i=2; i<12; i+=2){ // flow rates - 5 * 2 byte
+        payload[i] = (flows[i/2-1] >> 8) & 0xFF;
+        payload[i] = flows[i/2-1] & 0xFF;
       }
       
       #ifdef DEBUG
@@ -144,12 +145,12 @@ void loop() {
       #endif
       
       // left shift contents of pressures by number of empty readings in the beginning of pressures
-      for(int i=0; i<=(10-index); i++){
+      for(int i=0; i<=(5-index); i++){
         pressures[i] = pressures[i+index];
       }
       
       // Continue cycle from last valid measure
-      counter = 10 - index;
+      counter = 5 - index;
     }
 
     // update mode at the end, so that the correct one is being sent over lora
@@ -157,31 +158,31 @@ void loop() {
     
   }
 
-  STM32L0.stop();   // end of cycle, go to sleep
+  STM32L0.stop(); // end of cycle, go to sleep
 }
 
 
 void alarmMatch(){
-  STM32L0.wakeup();   // wake up from sleep
-  counter == 10 ? counter = 1 : counter++;
+  STM32L0.wakeup(); // wake up from sleep
+  counter == 5 ? counter = 1 : counter++;  // increment counter
 }
 
 
 // determine interval of next batch based on voltage on supercap
 void updateInterval(float battery){
   #ifndef DEBUG
-    if(battery >= 4.32){ // more than 50% - reports every 10min - 1min frequency
+    if(battery >= 4.32){ // more than 50% - reports every 5min - 1min frequency
       interval = 60;
-    }else if(battery >= 3.7){ // more than 25% - reports every 50min - 5min frequency
+    }else if(battery >= 3.7){ // more than 25% - reports every 25min - 5min frequency
       interval = 300;
-    }else{ // less than 25% - reports every 100min - 10min frequency
+    }else{ // less than 25% - reports every 50min - 10min frequency
       interval = 600;
     }
   #endif
 }
 
 
-// update mode based on voltage on supercap to let back-end know about frequency
+// update operation mode based on voltage on supercap to let back-end know about frequency
 void updateMode(float battery){
   #ifndef DEBUG
     if(battery >= 4.32){
