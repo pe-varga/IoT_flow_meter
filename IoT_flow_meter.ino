@@ -10,21 +10,21 @@
 #define DS18B20_VDD 4
 #define DS18B20_ONEWIRE 5
 
-#include "RTC.h"
-#include "STM32L0.h"
-#include "lora.h"
-#include "MPR.h"
-#include "DS18B20.h"
-#include "sensors.h"
-
-
 // Global variables
 int counter = 0;
 int interval = 60;
 int mode = 1;
 float battery;
 float pressures[6];
+int flows[5];
 
+#include "RTC.h"
+#include "STM32L0.h"
+#include "lora.h"
+#include "MPR.h"
+#include "DS18B20.h"
+#include "sensors.h"
+#include "tasks.h"
 
 void setup() {
 
@@ -95,7 +95,7 @@ void loop() {
   if(counter == 5){  // end of batch
 
     // Convert pressure readings to flow rates in mm/h multiplied by 100, and find the index of the first flow that is greater than ~2mm/h
-    int flows[5];
+    flows[5];
     int index = 5;
     for(int i=0; i<5; i++){
       flows[i] = (int)round(100 * (3600 / interval) * (pressures[i+1] - pressures[i]) / (4 * 9.80665));
@@ -111,22 +111,9 @@ void loop() {
     
       // Read temperature
       float temperature = readTemp();
-  
+
       // Pack payload in 12 bytes
-      payload[0] = ((mode << 6) & 0xC0) + (((int)round(100 * (temperature + 55)) >> 8) & 0x3F); // mode - 2 bits, temp - 6 bits
-      payload[1] = (int)round(100 * (temperature + 55)) & 0xFF; // temp - 1 byte
-      for(int i=2; i<12; i+=2){ // flow rates - 5 * 2 byte
-        payload[i] = (flows[i/2-1] >> 8) & 0xFF;
-        payload[i] = flows[i/2-1] & 0xFF;
-      }
-      
-      #ifdef DEBUG
-        for(int i=0; i<12; i++){
-          Serial1.print(payload[i], HEX);
-          Serial1.print(" ");
-        }
-        Serial1.println();
-      #endif
+      packPayload(temperature);
   
       // Send data over LoRaWAN using port 1 on TTN
       sendLoRa(1);
@@ -165,32 +152,4 @@ void loop() {
 void alarmMatch(){
   STM32L0.wakeup(); // wake up from sleep
   counter == 5 ? counter = 1 : counter++;  // increment counter
-}
-
-
-// determine interval of next batch based on voltage on supercap
-void updateInterval(float battery){
-  #ifndef DEBUG
-    if(battery >= 4.32){ // more than 50% - reports every 5min - 1min frequency
-      interval = 60;
-    }else if(battery >= 3.7){ // more than 25% - reports every 25min - 5min frequency
-      interval = 300;
-    }else{ // less than 25% - reports every 50min - 10min frequency
-      interval = 600;
-    }
-  #endif
-}
-
-
-// update operation mode based on voltage on supercap to let back-end know about frequency
-void updateMode(float battery){
-  #ifndef DEBUG
-    if(battery >= 4.32){
-      mode = 1;
-    }else if(battery >= 3.7){
-      mode = 2;
-    }else{
-      mode = 3;
-    }
-  #endif
 }
