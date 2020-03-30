@@ -1,4 +1,4 @@
-//#define DEBUG
+#define DEBUG
 
 #ifdef DEBUG
   #define WHITE_LED 10
@@ -11,12 +11,17 @@
 #define DS18B20_ONEWIRE 5
 
 // Global variables
-int counter = 0;
-int interval = 60;
+int cycle = 1;  // 1 - 5
+int counter = 0;  //  1 - 10 
+
+int interval = 5;
 int mode = 1;
 float battery;
-float pressures[6];
+
+float pressures[11];
 int flows[5];
+
+int valid = 5;
 
 #include "RTC.h"
 #include "STM32L0.h"
@@ -41,7 +46,7 @@ void setup() {
   
     Serial1.println("Start Initialisation");
 
-    interval = 10;
+    interval = 2;
   #endif
   
   // init voltage reading on supercap
@@ -66,6 +71,10 @@ void setup() {
   updateInterval(battery); 
   updateMode(battery);
 
+  // Read pressure for 0th data point
+  pressures[counter] = readPressure(25);
+  counter++;
+
   // start clock
   RTC.setEpoch(0);
 }
@@ -75,11 +84,11 @@ void loop() {
   
   #ifdef DEBUG
     Serial1.println();
-    Serial1.print("Cycle: ");   Serial1.println(counter);
+    Serial1.print("Cycle: "); Serial1.print(cycle); Serial1.print(" Counter: "); Serial1.println(counter);
   #endif
 
   // Determine power scheme for next batch based on battery life
-  if(counter == 5){
+  if((cycle == 5) && (counter == 10)){
     battery = readBattery();
     updateInterval(battery); 
   }
@@ -92,57 +101,67 @@ void loop() {
   // Read pressure
   pressures[counter] = readPressure(25);
 
-  if(counter == 5){  // end of batch
-
-    // Convert pressure readings to flow rates in mm/h multiplied by 100, and find the index of the first flow that is greater than ~2mm/h
-    flows[5];
-    int index = 5;
-    for(int i=0; i<5; i++){
-      flows[i] = (int)round(100 * (3600 / interval) * (pressures[i+1] - pressures[i]) / (4 * 9.80665));
-      if(flows[i] < 200){ //flow rate is smaller than ~2mm/h, discard reading
-        flows[i] = 0;
-      }else if(index == 5){
-        index = i;
+  // take average of slope, find index of first average to be greater than 1 pascal/interval, convert to 100 * mm/h
+  if(counter == 10){
+    float sum = 0;
+    for(int i=0; i<10; i++){
+      sum += pressures[i+1] - pressures[i];
+    }
+    if((sum / 10.0) > 1){
+      flows[cycle-1] = (int)round(100 * (3600 / interval) * (sum / 10.0) / (4 * 9.80665));
+      if(valid == 5){
+        valid = cycle-1;
       }
+    }else{
+      flows[cycle-1] = 0;
     }
     
-    // if there is information at the first index, send the batch along with mode and temperature
-    if(index == 0){
-    
-      // Read temperature
-      float temperature = readTemp();
+    // Last reading of the cycle becomes the first of the next one
+    pressures[0] = pressures[10];
 
-      // Pack payload in 12 bytes
-      packPayload(temperature);
+    if(cycle == 5){  // end of batch
+      
+      // if there is information at the first index, send the batch along with mode and temperature
+      if(valid == 0){
+      
+        // Read temperature
+        float temperature = readTemp();
   
-      // Send data over LoRaWAN using port 1 on TTN
-      sendLoRa(1);
-
-      // Last reading of the cycle becomes the first of the next one
-      pressures[0] = pressures[10];
-    }
-
-    // if there is no information in the first x reading or in the entire batch
-    else{
-      
-      #ifdef DEBUG
-        Serial1.println();
-        Serial1.print("left shift by: ");
-        Serial1.println(index);
-      #endif
-      
-      // left shift contents of pressures by number of empty readings in the beginning of pressures
-      for(int i=0; i<=(5-index); i++){
-        pressures[i] = pressures[i+index];
-      }
-      
-      // Continue cycle from last valid measure
-      counter = 5 - index;
-    }
-
-    // update mode at the end, so that the correct one is being sent over lora
-    updateMode(battery);
+        // Pack payload in 12 bytes
+        packPayload(temperature);
     
+        // Send data over LoRaWAN using port 1 on TTN
+        sendLoRa(1);
+
+        // reset index
+        valid = 5; 
+      }
+  
+      // if there is no information in the first x reading or in the entire batch
+      else{
+        
+        #ifdef DEBUG
+          Serial1.print("left shift by: ");
+          Serial1.println(valid);
+        #endif
+        
+        // left shift contents of flows according to the index of the first information in the queue
+        for(int i=0; i<(5-valid); i++){
+         flows[i] = flows[i+valid];
+        }
+        
+        // Continue cycle from last valid measure or start next batch without sending anything
+        cycle = 5 - valid;
+
+        // If information was left-shifted, send data once the batch is completed
+        if(valid != 5){
+          valid = 0;
+        }
+      }
+  
+      // update mode at the end, so that the correct one is being sent over lora
+      updateMode(battery);
+    }
   }
 
   STM32L0.stop(); // end of cycle, go to sleep
@@ -150,6 +169,11 @@ void loop() {
 
 
 void alarmMatch(){
+  
   STM32L0.wakeup(); // wake up from sleep
-  counter == 5 ? counter = 1 : counter++;  // increment counter
+  
+  if(counter == 10){
+    cycle == 5 ? cycle = 1 : cycle++;  // increment cycle 
+  }
+  counter == 10 ? counter = 1 : counter++;  // increment counter
 }

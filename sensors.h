@@ -22,15 +22,15 @@ float readPressure(int smoothing = 10){
   float sum = 0;
   for(int i=0; i<smoothing; i++){
     sum += mpr->readPascal();
-    delay(5);
+    STM32L0.stop(5);
   }
-  float pressure = sum / (float)smoothing;
+  float avePressure = sum / (float)smoothing;
   
   #ifdef DEBUG
-    Serial1.print("Pressure: ");   Serial1.println(pressure);
+    Serial1.print("Pressure: ");   Serial1.println(avePressure);
   #endif
 
-  return pressure;
+  return avePressure;
 }
 
 
