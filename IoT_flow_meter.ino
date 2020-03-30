@@ -1,4 +1,4 @@
-#define DEBUG
+//#define DEBUG
 
 #ifdef DEBUG
   #define WHITE_LED 10
@@ -10,17 +10,18 @@
 #define DS18B20_VDD 4
 #define DS18B20_ONEWIRE 5
 
-// Global variables
+// Program counters
 int cycle = 1;  // 1 - 5
 int counter = 0;  //  1 - 10 
 
+// Battery management
 int interval = 5;
 int mode = 1;
 float battery;
 
+// Measurements
 float pressures[11];
 int flows[5];
-
 int valid = 5;
 
 #include "RTC.h"
@@ -103,12 +104,9 @@ void loop() {
 
   // take average of slope, find index of first average to be greater than 1 pascal/interval, convert to 100 * mm/h
   if(counter == 10){
-    float sum = 0;
-    for(int i=0; i<10; i++){
-      sum += pressures[i+1] - pressures[i];
-    }
-    if((sum / 10.0) > 1){
-      flows[cycle-1] = (int)round(100 * (3600 / interval) * (sum / 10.0) / (4 * 9.80665));
+    float slope = linReg(pressures, 11);
+    if(slope > 1){
+      flows[cycle-1] = (int)round(100 * (3600 / (interval* 10)) * slope / (4 * 9.80665));
       if(valid == 5){
         valid = cycle-1;
       }
