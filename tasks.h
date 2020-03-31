@@ -11,7 +11,8 @@
 
 // Determine interval of next batch based on voltage on supercap
 void updateInterval(float battery){
-  #ifndef DEBUG
+  
+  #ifndef DEBUG // do not update interval if debugging is in process
     if(battery >= 4.32){ // more than 50%
       interval = 5;
     }else if(battery >= 3.7){ // more than 25%
@@ -25,7 +26,8 @@ void updateInterval(float battery){
 
 // Update operation mode based on voltage on supercap to let back-end know about frequency
 void updateMode(float battery){
-  #ifndef DEBUG
+  
+  #ifndef DEBUG // do not update mode if debugging is in process
     if(battery >= 4.32){
       mode = 1;
     }else if(battery >= 3.7){
@@ -37,19 +39,20 @@ void updateMode(float battery){
 }
 
 
-// Calculate slope of y values using linear regression
-float linReg(float y[], int ySize){
+// Calculate slope of values in array from start until end position using linear regression
+float linReg(float y[], int start, int end){
 
   // generate x values and get their mean
+  int ySize = end - start + 1;
   int x[ySize];
   for(int i=0; i<ySize; i++){
     x[i] = i+1;
   }
-  int xMean = (1 + ySize) / 2;
+  float xMean = (1 + ySize) / 2.0;
 
   // get mean of y values
   float yMean = 0;
-  for(int i=0; i<ySize; i++){
+  for(int i=start; i<=end; i++){
     yMean += y[i];
   }
   yMean = yMean / (float)ySize;
@@ -58,11 +61,68 @@ float linReg(float y[], int ySize){
   float sum1 = 0;
   float sum2 = 0;
   for(int i=0; i<ySize; i++){
-    sum1 += (x[i] - xMean)*(y[i] - yMean);
+    sum1 += (x[i] - xMean)*(y[start+i] - yMean);
     sum2 += pow(x[i] - xMean, 2);
   }
 
-  return sum1/sum2 * ySize;
+  return sum1/sum2;
+}
+
+
+// discard measurements of flushes and piece together a slope from segments of valid data
+float getSlope(){
+  
+  int start = 0;  // first index of a valid segment in pressures
+  int end = 0;  // last index of a valid segment in pressures
+  int arrays = 0; // number of valid segments in pressures
+  float sum = 0;  // sum of the slopes of valid segments
+
+  // locate valid segments
+  while(end < 11){
+    start = end;
+    while(end < 11){
+      if(!flush[end]){
+        if(end == 10){
+            break;
+        }
+        end++;
+      }else{
+        end--;
+        break;
+      }
+    }
+    // calculate slope of valid segments
+    if(start < end){
+      sum += linReg(pressures, start, end);
+      arrays++;
+    }
+    end+=2;
+  }
+
+  // get the average of the slope of valid segments
+  return sum/(float)arrays;
+}
+
+
+// updates global bool array 'flush', and flags the index of flushed measurements
+void checkFlush(){
+
+  // evaluation of the last measurement from the precious cycle becomes the first one
+  flush[0] = flush[10];
+  
+  for(int i=0; i<10; i++){
+    // it is considered a flush if there is a sudden drop of at least 1.5 pascals (one full flush is aprx -450 pascals based on experiments)
+    if((pressures[i+1] - pressures[i]) < -1.5){
+      flush[i+1] = true;
+      
+      #ifdef DEBUG
+        Serial1.print("Flush detected at counter: "); Serial1.println(i+1);
+      #endif
+      
+    }else{
+      flush[i+1] = false;
+    }
+  }
 }
 
 
@@ -72,8 +132,8 @@ void packPayload(float temperature){
   payload[0] = ((mode << 6) & 0xC0) + (((int)round(100 * (temperature + 55)) >> 8) & 0x3F); // mode - 2 bits, temp - 6 bits
   payload[1] = (int)round(100 * (temperature + 55)) & 0xFF; // temp - 1 byte
   for(int i=2; i<12; i+=2){ // flow rates - 5 * 2 byte
-    payload[i] = (flows[i/2-1] >> 8) & 0xFF;
-    payload[i+1] = flows[i/2-1] & 0xFF;
+    payload[i] = (flows[i/2-1] >> 8) & 0xFF;  // high byte
+    payload[i+1] = flows[i/2-1] & 0xFF; // low byte
   }
   
   #ifdef DEBUG

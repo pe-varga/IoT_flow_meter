@@ -21,6 +21,7 @@ float battery;
 
 // Measurements
 float pressures[11];
+bool flush[11] = {false};
 int flows[5];
 int valid = 5;
 
@@ -47,6 +48,7 @@ void setup() {
   
     Serial1.println("Start Initialisation");
 
+    // Overwrite interval for faster debugging
     interval = 2;
   #endif
   
@@ -102,20 +104,36 @@ void loop() {
   // Read pressure
   pressures[counter] = readPressure(25);
 
-  // take average of slope, find index of first average to be greater than 1 pascal/interval, convert to 100 * mm/h
-  if(counter == 10){
-    float slope = linReg(pressures, 11);
-    if(slope > 1){
-      flows[cycle-1] = (int)round(100 * (3600 / (interval* 10)) * slope / (4 * 9.80665));
+
+  if(counter == 10){  // end of cycle
+    
+    // find flushed values
+    checkFlush();
+
+    // calculate slope of measurements discarding flushed ones
+    float slope = getSlope();
+    #ifdef DEBUG
+      Serial1.print("Slope (Pa/Cycle): ");  Serial1.println(slope * 10);
+      Serial1.print("Flow (mm/h): ");  Serial1.println((3600 / interval) * slope / (4 * 9.80665));
+    #endif
+
+    // if the slope is greater than half a pascal (it is not noise), convert to 100 * mm/h
+    if(slope > 0.5){
+      flows[cycle-1] = (int)round(100 * (3600 / interval) * slope / (4 * 9.80665));
+
+      // find index of first average to be greater than 1 pascal/interval
       if(valid == 5){
         valid = cycle-1;
       }
+
+    // otherwise the flow rate is very small and likely to be noise, therefore discarded
     }else{
       flows[cycle-1] = 0;
     }
     
-    // Last reading of the cycle becomes the first of the next one
+    // last reading of the cycle becomes the first of the next one
     pressures[0] = pressures[10];
+
 
     if(cycle == 5){  // end of batch
       
@@ -162,7 +180,7 @@ void loop() {
     }
   }
 
-  STM32L0.stop(); // end of cycle, go to sleep
+  STM32L0.stop(); // go to sleep
 }
 
 
