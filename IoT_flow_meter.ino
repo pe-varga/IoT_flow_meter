@@ -1,7 +1,16 @@
 //#define DEBUG
+//#define TEST
 
 #ifdef DEBUG
   #define WHITE_LED 10
+#endif
+
+#ifdef TEST
+  float test[5][11] = {{20.0, 21.0, 22.0, 23.0, 24.0, 25.0, 26.0, 27.0, 28.0, 29.0, 30.0},
+                      {30.50, 31.0, 31.50, 32.0, 32.5, 33.0, 33.5, 34.0, 34.5, 35.0, 35.5},
+                      {35.5, 35.6, 35.7, 35.8, 35.9, 36.0, 36.1, 36.2, 36.3, 36.4, 46.5},
+                      {36.5, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0},
+                      {19.0, 19.1, 19.2, 19.3, 19.5, 19.7, 20.0, 20.0, 20.0, 20.0, 20.0}};
 #endif
 
 #define BATTERY_ADC A0
@@ -10,9 +19,12 @@
 #define DS18B20_VDD 4
 #define DS18B20_ONEWIRE 5
 
+
+
 // Program counters
 int cycle = 1;  // 1 - 5
 int counter = 0;  //  1 - 10 
+int heartbeat = 0;
 
 // Battery management
 int interval = 5;
@@ -20,6 +32,7 @@ int mode = 1;
 float battery;
 
 // Measurements
+float temperature;
 float pressures[11];
 bool flush[11] = {false};
 int flows[5];
@@ -49,7 +62,10 @@ void setup() {
     Serial1.println("Start Initialisation");
 
     // Overwrite interval for faster debugging
-    interval = 2;
+    interval = 3;
+
+    // Simulate sending battery reading quicker
+    heartbeat = 11;
   #endif
   
   // init voltage reading on supercap
@@ -58,8 +74,11 @@ void setup() {
   pinMode(BATTERY_SWITCH, OUTPUT);
   digitalWrite(BATTERY_SWITCH, LOW);
 
-  // init pressure sensor
+  // init pressure sensor, wait for calibration
   mpr = new MPR(MPR_CHIP_SELECT);
+  mpr->readPascal();
+  STM32L0.stop(5000);
+  mpr->readPascal();
 
   // init temperature sensor
   pinMode(DS18B20_VDD, OUTPUT);
@@ -104,22 +123,28 @@ void loop() {
   // Read pressure
   pressures[counter] = readPressure(25);
 
-
   if(counter == 10){  // end of cycle
-    
+
+    #ifdef TEST
+      // overwrite readings with test values
+      for (int i=0; i<11; i++){
+        pressures[i] = test[cycle-1][i];
+      }
+    #endif
+
     // find flushed values
     checkFlush();
 
     // calculate slope of measurements discarding flushed ones
     float slope = getSlope();
     #ifdef DEBUG
-      Serial1.print("Slope (Pa/Cycle): ");  Serial1.println(slope * 10);
-      Serial1.print("Flow (mm/h): ");  Serial1.println((3600 / interval) * slope / (4 * 9.80665));
+      Serial1.print("Slope (Pa/Cycle): ");  Serial1.println(slope);
+      Serial1.print("Flow (mm/h): ");  Serial1.println((3600 / (interval* 10)) * slope / (4 * 9.80665));
     #endif
 
-    // if the slope is greater than half a pascal (it is not noise), convert to 100 * mm/h
-    if(slope > 0.5){
-      flows[cycle-1] = (int)round(100 * (3600 / interval) * slope / (4 * 9.80665));
+    // if the slope is greater than one pascal (it is not noise), convert to 100 * mm/h
+    if(slope > 1){
+      flows[cycle-1] = (int)round(100 * (3600 / (interval * 10)) * slope / (4 * 9.80665));
 
       // find index of first average to be greater than 1 pascal/interval
       if(valid == 5){
@@ -134,23 +159,20 @@ void loop() {
     // last reading of the cycle becomes the first of the next one
     pressures[0] = pressures[10];
 
-
     if(cycle == 5){  // end of batch
-      
+
       // if there is information at the first index, send the batch along with mode and temperature
       if(valid == 0){
       
         // Read temperature
-        float temperature = readTemp();
-  
-        // Pack payload in 12 bytes
-        packPayload(temperature);
+        temperature = readTemp();
     
-        // Send data over LoRaWAN using port 1 on TTN
-        sendLoRa(1);
+        // Send flow readings to TTN
+        sendFlows();
 
-        // reset index
+        // reset index and heartbeat
         valid = 5; 
+        heartbeat = 0;
       }
   
       // if there is no information in the first x reading or in the entire batch
@@ -172,6 +194,13 @@ void loop() {
         // If information was left-shifted, send data once the batch is completed
         if(valid != 5){
           valid = 0;
+        }else{
+          heartbeat++;
+          // If nothing was sent for 12 consecutive batches(1, 5, 10 hours), send battery life to TTN
+          if(heartbeat >= 12){
+            sendBattery();
+            heartbeat = 0;
+          }
         }
       }
   
@@ -189,7 +218,8 @@ void alarmMatch(){
   STM32L0.wakeup(); // wake up from sleep
   
   if(counter == 10){
-    cycle == 5 ? cycle = 1 : cycle++;  // increment cycle 
+    cycle == 5 ? cycle = 1 : cycle++;  // increment cycle
+    counter = 0; 
   }
-  counter == 10 ? counter = 1 : counter++;  // increment counter
+  counter++;  // increment counter
 }

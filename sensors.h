@@ -37,6 +37,7 @@ float readPressure(int smoothing = 10){
 float readTemp(){
   
   digitalWrite(DS18B20_VDD, HIGH); 
+  delay(5);
   float temperature = ds18b20->readCelsius();
   digitalWrite(DS18B20_VDD, LOW);
   

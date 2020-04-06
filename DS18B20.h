@@ -110,7 +110,8 @@ float DS18B20::readCelsius(){
   writeData(0xCC);  // skip ROM
   writeData(0x44);  // convert reading
 
-  STM32L0.stop(750);
+  STM32L0.stop(500);
+  delay(250);
 
   check();
   writeData(0xCC);  // skip ROM
