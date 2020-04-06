@@ -10,32 +10,34 @@
  */ 
 
 // Determine interval of next batch based on voltage on supercap
-void updateInterval(float battery){
+void updatePowerScheme(){
   
-  #ifndef DEBUG // do not update interval if debugging is in process
+  #ifndef DEBUG // do not update power scheme if debugging is in process
     if(battery >= 3.94){ // more than 50%
-      interval = 6;
+      mode = 1; interval = 6;
     }else if(battery >= 3.2){ // more than 25%
-      interval = 30;
+      mode = 2; interval = 30;
     }else{ // less than 25%
-      interval = 60;
+      mode = 3; interval = 60;
     }
   #endif
 }
 
 
 // Update operation mode based on voltage on supercap to let back-end know about frequency
-void updateMode(float battery){
+float getInterval(){
   
-  #ifndef DEBUG // do not update mode if debugging is in process
-    if(battery >= 3.94){
-      mode = 1;
-    }else if(battery >= 3.2){
-      mode = 2;
-    }else{
-      mode = 3;
-    }
+  #ifdef DEBUG // do not update interval if debugging is in process
+    return interval;
   #endif
+  
+  if(battery >= 3.94){
+    return 6;
+  }else if(battery >= 3.2){
+    return 30;
+  }else{
+    return 60;
+  }
 }
 
 

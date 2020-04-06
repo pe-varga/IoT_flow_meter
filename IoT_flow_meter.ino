@@ -89,8 +89,7 @@ void setup() {
 
   // set power scheme for first ever cycle
   battery = readBattery();
-  updateInterval(battery); 
-  updateMode(battery);
+  updatePowerScheme(); 
 
   // Read pressure for 0th data point
   pressures[counter] = readPressure(25);
@@ -108,14 +107,13 @@ void loop() {
     Serial1.print("Cycle: "); Serial1.print(cycle); Serial1.print(" Counter: "); Serial1.println(counter);
   #endif
 
-  // Determine power scheme for next batch based on battery life
+  // Get battery life to determine power scheme for the next batch
   if((cycle == 5) && (counter == 10)){
     battery = readBattery();
-    updateInterval(battery); 
   }
 
   // Schedule next alarm
-  RTC.setAlarmEpoch(RTC.getEpoch() + interval);
+  RTC.setAlarmEpoch(RTC.getEpoch() + getInterval());
   RTC.enableAlarm(RTC.MATCH_YYMMDDHHMMSS);
   RTC.attachInterrupt(alarmMatch);
     
@@ -138,7 +136,7 @@ void loop() {
     float slope = getSlope();
     #ifdef DEBUG
       Serial1.print("Slope (Pa/Cycle): ");  Serial1.println(slope);
-      Serial1.print("Flow (mm/h): ");  Serial1.println((3600 / (interval* 10)) * slope / (4 * 9.80665));
+      Serial1.print("Flow (mm/h): ");  Serial1.println((3600 / (interval * 10)) * slope / (4 * 9.80665));
     #endif
 
     // if the slope is greater than one pascal (it is not noise), convert to 100 * mm/h
@@ -203,8 +201,8 @@ void loop() {
         }
       }
   
-      // update mode at the end, so that the correct one is being sent over lora
-      updateMode(battery);
+      // update power scheme at the end, so that correct mode is being sent over lora
+      updatePowerScheme();
     }
   }
 
