@@ -25,7 +25,7 @@ void updatePowerScheme(){
 
 
 // Update operation mode based on voltage on supercap to let back-end know about frequency
-float getInterval(){
+int getInterval(){
   
   #ifdef DEBUG // do not update interval if debugging is in process
     return interval;

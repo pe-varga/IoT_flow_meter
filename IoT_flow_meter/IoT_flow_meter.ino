@@ -1,4 +1,4 @@
-//#define DEBUG
+#define DEBUG
 //#define TEST
 
 #ifdef DEBUG
@@ -26,7 +26,7 @@ int counter = 0;  //  1 - 10
 int heartbeat = 0;
 
 // Battery management
-int interval = 5;
+int interval = 6;
 int mode = 1;
 float battery;
 
@@ -61,10 +61,10 @@ void setup() {
     Serial1.println("Start Initialisation");
 
     // Overwrite interval for faster debugging
-    interval = 3;
+    interval = 5;
 
     // Simulate sending battery reading quicker
-    heartbeat = 11;
+    heartbeat = 0;
   #endif
   
   // init voltage reading on supercap
@@ -76,7 +76,7 @@ void setup() {
   // init pressure sensor, wait for calibration
   mpr = new MPR(MPR_CHIP_SELECT);
   mpr->readPascal();
-  STM32L0.stop(5000);
+  STM32L0.stop(10000);
   mpr->readPascal();
 
   // init temperature sensor
