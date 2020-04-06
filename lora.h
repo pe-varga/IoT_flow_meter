@@ -70,8 +70,8 @@ void sendFlows(){
 
 void sendBattery(){
   int percent = 0;
-  if(battery >= 2.2){
-    percent = (int)round(pow(battery-2.2, 2)/9 * 10000);
+  if(battery >= 2.245){
+    percent = (int)round((pow(battery, 2) - 5.04) / 20.97 * 10000);
   }
   
   byte payload[2];

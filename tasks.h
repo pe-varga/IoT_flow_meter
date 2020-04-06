@@ -13,9 +13,9 @@
 void updateInterval(float battery){
   
   #ifndef DEBUG // do not update interval if debugging is in process
-    if(battery >= 4.32){ // more than 50%
+    if(battery >= 3.94){ // more than 50%
       interval = 6;
-    }else if(battery >= 3.7){ // more than 25%
+    }else if(battery >= 3.2){ // more than 25%
       interval = 30;
     }else{ // less than 25%
       interval = 60;
@@ -28,9 +28,9 @@ void updateInterval(float battery){
 void updateMode(float battery){
   
   #ifndef DEBUG // do not update mode if debugging is in process
-    if(battery >= 4.32){
+    if(battery >= 3.94){
       mode = 1;
-    }else if(battery >= 3.7){
+    }else if(battery >= 3.2){
       mode = 2;
     }else{
       mode = 3;

@@ -20,7 +20,6 @@
 #define DS18B20_ONEWIRE 5
 
 
-
 // Program counters
 int cycle = 1;  // 1 - 5
 int counter = 0;  //  1 - 10 
