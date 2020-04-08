@@ -1,5 +1,5 @@
 readChannelID = *******;
-readAPIKey = '***************';
+readAPIKey = '****************';
 
 numMinutes = 120;
 
@@ -27,5 +27,7 @@ end
 time = reshape(time, [size(time, 2), 1]);
 data = reshape(data, [size(data, 2), 1]);
 
-stairs(time, data, 'LineWidth', 2, 'Color', '#4DBEEE');
-ylabel('Flow (mm/h)')
+stairs(time, data, 'LineWidth', 1, 'Color', '#77AC30');
+ylabel('Flow (mm/h)');
+yl = ylim;
+ylim([0 (yl(2)+5)]);
