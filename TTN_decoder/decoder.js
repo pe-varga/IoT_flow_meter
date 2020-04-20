@@ -2,7 +2,7 @@ function Decoder(bytes, port) {
   
   var decoded = {};
 
-  if (port === 1){
+  if (port === 6){
     decoded.mode = bytes[0] >> 6;
     decoded.temperature = (((bytes[0] & 0x3F) * 256 + bytes[1]) /100) - 55;
     decoded.flow_1 = (bytes[2] * 256 + bytes[3]) / 100;
@@ -10,7 +10,7 @@ function Decoder(bytes, port) {
     decoded.flow_3 = (bytes[6] * 256 + bytes[7]) / 100;
     decoded.flow_4 = (bytes[8] * 256 + bytes[9]) / 100;
     decoded.flow_5 = (bytes[10] * 256 + bytes[11]) / 100;
-  }else if(port === 2){
+  }else if(port === 7){
     decoded.battery = (bytes[0] * 256 + bytes[1]) / 100;
   }
 
