@@ -12,3 +12,4 @@ scatter(timestamp, temperature, 10, [0.6350 0.0780 0.1840], 'o', 'filled');
 ylabel('Temperature (°C)');
 yl = ylim;
 ylim([0 (yl(2)+5)]);
+grid on
