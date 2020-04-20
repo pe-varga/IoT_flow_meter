@@ -49,7 +49,7 @@ void sendFlows(){
             LoRaWAN.rejoinOTAA();
         }
         if (LoRaWAN.joined()){
-          LoRaWAN.beginPacket(1); // port 1
+          LoRaWAN.beginPacket(6); // port 6
           LoRaWAN.write(payload, 12);
           err = LoRaWAN.endPacket();
         }
@@ -92,7 +92,7 @@ void sendBattery(){
             LoRaWAN.rejoinOTAA();
         }
         if (LoRaWAN.joined()){
-          LoRaWAN.beginPacket(2); // port 2
+          LoRaWAN.beginPacket(7); // port 7
           LoRaWAN.write(payload, 2);
           err = LoRaWAN.endPacket();
         }

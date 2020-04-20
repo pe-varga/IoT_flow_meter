@@ -1,9 +1,5 @@
-#define DEBUG
+//#define DEBUG
 //#define TEST
-
-#ifdef DEBUG
-  #define WHITE_LED 10
-#endif
 
 #ifdef TEST
   float test[5][11] = {{20.0, 21.0, 22.0, 23.0, 24.0, 25.0, 26.0, 27.0, 28.0, 29.0, 30.0},
@@ -11,6 +7,10 @@
                       {35.5, 35.6, 35.7, 35.8, 35.9, 36.0, 36.1, 36.2, 36.3, 36.4, 46.5},
                       {36.5, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0},
                       {19.0, 19.1, 19.2, 19.3, 19.5, 19.7, 20.0, 20.0, 20.0, 20.0, 20.0}};
+#endif
+
+#ifdef DEBUG
+  #define WHITE_LED 10
 #endif
 
 #define BATTERY_ADC A0
@@ -61,10 +61,10 @@ void setup() {
     Serial1.println("Start Initialisation");
 
     // Overwrite interval for faster debugging
-    interval = 5;
+    interval = 3;
 
     // Simulate sending battery reading quicker
-    heartbeat = 0;
+    heartbeat = 11;
   #endif
   
   // init voltage reading on supercap
@@ -73,19 +73,20 @@ void setup() {
   pinMode(BATTERY_SWITCH, OUTPUT);
   digitalWrite(BATTERY_SWITCH, LOW);
 
-  // init pressure sensor, wait for calibration
+  // join TTN over LoRaWAN
+  initLoRa();
+
+  // init pressure sensor, discard first 15 readings
   mpr = new MPR(MPR_CHIP_SELECT);
-  mpr->readPascal();
-  STM32L0.stop(10000);
-  mpr->readPascal();
+  for(int i=0; i<15; i++){
+    mpr->readPascal();
+    STM32L0.stop(1000);
+  }
 
   // init temperature sensor
   pinMode(DS18B20_VDD, OUTPUT);
   digitalWrite(DS18B20_VDD, LOW); 
   ds18b20 = new DS18B20(DS18B20_ONEWIRE);
-
-  // join TTN over LoRaWAN
-  initLoRa();
 
   // set power scheme for first ever cycle
   battery = readBattery();
@@ -94,7 +95,9 @@ void setup() {
   // Read pressure for 0th data point
   pressures[counter] = readPressure(25);
   counter++;
-
+  
+  STM32L0.stop(interval * 1000);
+  
   // start clock
   RTC.setEpoch(0);
 }
@@ -139,18 +142,16 @@ void loop() {
       Serial1.print("Flow (mm/h): ");  Serial1.println((3600 / (interval * 10)) * slope / (4 * 9.80665));
     #endif
 
-    // if the slope is greater than one pascal (it is not noise), convert to 100 * mm/h
-    if(slope > 1){
-      flows[cycle-1] = (int)round(100 * (3600 / (interval * 10)) * slope / (4 * 9.80665));
+    // if the slope is greater than one mm/h equivalent (it is not noise), convert to 100 * mm/h
+    flows[cycle-1] = (int)round(100 * (3600 / (interval * 10)) * slope / (4 * 9.80665));
 
-      // find index of first average to be greater than 1 pascal/interval
-      if(valid == 5){
-        valid = cycle-1;
-      }
-
-    // otherwise the flow rate is very small and likely to be noise, therefore discarded
-    }else{
+    // otherwise the flowrate is very small and likely to be noise, therefore discarded
+    if(flows[cycle-1] < 100){
       flows[cycle-1] = 0;
+
+    // find index of first average to be greater than 1 pascal/interval
+    }else if(valid == 5){
+      valid = cycle-1;
     }
     
     // last reading of the cycle becomes the first of the next one

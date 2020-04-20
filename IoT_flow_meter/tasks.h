@@ -118,8 +118,8 @@ void checkFlush(){
   flush[0] = flush[10];
   
   for(int i=0; i<10; i++){
-    // it is considered a flush if there is a sudden drop of at least 1.5 pascals (one full flush is aprx -450 pascals based on experiments)
-    if((pressures[i+1] - pressures[i]) < -1.5){
+    // it is considered a flush if there is a sudden drop of at least 1 pascals (one full flush is aprx -430 pascals based on experiments)
+    if((pressures[i+1] - pressures[i]) < -1){
       flush[i+1] = true;
       
       #ifdef DEBUG
