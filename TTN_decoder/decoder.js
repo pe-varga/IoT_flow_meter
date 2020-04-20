@@ -4,7 +4,7 @@ function Decoder(bytes, port) {
 
   if (port === 6){
     decoded.mode = bytes[0] >> 6;
-    decoded.temperature = (((bytes[0] & 0x3F) * 256 + bytes[1]) /100) - 55;
+    decoded.temperature = parseFloat(((((bytes[0] & 0x3F) * 256 + bytes[1]) /100) - 55).toFixed(2));
     decoded.flow_1 = (bytes[2] * 256 + bytes[3]) / 100;
     decoded.flow_2 = (bytes[4] * 256 + bytes[5]) / 100;
     decoded.flow_3 = (bytes[6] * 256 + bytes[7]) / 100;
