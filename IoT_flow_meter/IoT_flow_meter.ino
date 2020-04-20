@@ -94,9 +94,8 @@ void setup() {
 
   // Read pressure for 0th data point
   pressures[counter] = readPressure(25);
-  counter++;
-  
   STM32L0.stop(interval * 1000);
+  counter++;
   
   // start clock
   RTC.setEpoch(0);
@@ -149,7 +148,7 @@ void loop() {
     if(flows[cycle-1] < 100){
       flows[cycle-1] = 0;
 
-    // find index of first average to be greater than 1 pascal/interval
+    // find index of first average to be valid based on the above
     }else if(valid == 5){
       valid = cycle-1;
     }
