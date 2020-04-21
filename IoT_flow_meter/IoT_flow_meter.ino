@@ -141,11 +141,11 @@ void loop() {
       Serial1.print("Flow (mm/h): ");  Serial1.println((3600 / (interval * 10)) * slope / (4 * 9.80665));
     #endif
 
-    // if the slope is greater than one mm/h equivalent (it is not noise), convert to 100 * mm/h
+    // convert to 100 * mm/h
     flows[cycle-1] = (int)round(100 * (3600 / (interval * 10)) * slope / (4 * 9.80665));
 
-    // otherwise the flowrate is very small and likely to be noise, therefore discarded
-    if(flows[cycle-1] < 100){
+    // if the flow is less than two mm/h equivalent, it is likely to be noise, therefore it is discarded  
+    if(flows[cycle-1] < 200){
       flows[cycle-1] = 0;
 
     // find index of first average to be valid based on the above
