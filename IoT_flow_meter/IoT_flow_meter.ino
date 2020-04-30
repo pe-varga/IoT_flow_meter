@@ -50,8 +50,6 @@ void setup() {
   #ifdef DEBUG
     // blink to signal initialisation
     pinMode(WHITE_LED, OUTPUT);
-    digitalWrite(WHITE_LED, HIGH); 
-    delay(200);
     digitalWrite(WHITE_LED, LOW);
   
     // Debug over Serial
@@ -73,6 +71,16 @@ void setup() {
   pinMode(BATTERY_SWITCH, OUTPUT);
   digitalWrite(BATTERY_SWITCH, LOW);
 
+  // read battery, and hang if it is below the undervoltage threshold
+  battery = readBattery();
+  if(battery < 2.245){
+    STM32L0.stop(30 * 60 * 1000);
+    STM32L0.reset();
+  }
+  
+  // set power scheme for first ever cycle
+  updatePowerScheme(); 
+
   // join TTN over LoRaWAN
   initLoRa();
 
@@ -87,10 +95,6 @@ void setup() {
   pinMode(DS18B20_VDD, OUTPUT);
   digitalWrite(DS18B20_VDD, LOW); 
   ds18b20 = new DS18B20(DS18B20_ONEWIRE);
-
-  // set power scheme for first ever cycle
-  battery = readBattery();
-  updatePowerScheme(); 
 
   // Read pressure for 0th data point
   pressures[counter] = readPressure(25);
@@ -137,12 +141,12 @@ void loop() {
     // calculate slope of measurements discarding flushed ones
     float slope = getSlope();
     #ifdef DEBUG
-      Serial1.print("Slope (Pa/Cycle): ");  Serial1.println(slope);
-      Serial1.print("Flow (mm/h): ");  Serial1.println((3600 / (interval * 10)) * slope / (4 * 9.80665));
+      Serial1.print("Slope (Pa/Cycle): ");  Serial1.println(slope * 10);
+      Serial1.print("Flow (mm/h): ");  Serial1.println((3600 / interval) * slope / (4 * 9.80665));
     #endif
 
     // convert to 100 * mm/h
-    flows[cycle-1] = (int)round(100 * (3600 / (interval * 10)) * slope / (4 * 9.80665));
+    flows[cycle-1] = (int)round(100 * (3600 / interval) * slope / (4 * 9.80665));
 
     // if the flow is less than two mm/h equivalent, it is likely to be noise, therefore it is discarded  
     if(flows[cycle-1] < 200){

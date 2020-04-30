@@ -72,6 +72,9 @@ void sendBattery(){
   int percent = 0;
   if(battery >= 2.245){
     percent = (int)round((pow(battery, 2) - 5.04) / 20.97 * 10000);
+    if(percent > 10000){
+      percent = 10000;
+    }
   }
   
   byte payload[2];

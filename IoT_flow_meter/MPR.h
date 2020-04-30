@@ -42,6 +42,7 @@ float MPR::readPascal(){
   digitalWrite(chipSelectPin, LOW);
 
   byte sensorStatus = SPI.transfer(START);
+  STM32L0.stop(5);
   byte data0 = SPI.transfer(DATA);
   byte data1 = SPI.transfer(DATA);
   byte data2 = SPI.transfer(DATA);

@@ -22,7 +22,6 @@ float readPressure(int smoothing = 10){
   float sum = 0;
   for(int i=0; i<smoothing; i++){
     sum += mpr->readPascal();
-    STM32L0.stop(5);
   }
   float avePressure = sum / (float)smoothing;
   

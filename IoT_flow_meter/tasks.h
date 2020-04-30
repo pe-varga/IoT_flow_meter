@@ -103,7 +103,7 @@ float getSlope(){
 
   // get the average of the slope of valid segments
   if(arrays){
-    return 10 * (sum/(float)arrays);
+    return sum/(float)arrays;
   }else{
     return 0.0;
   }
