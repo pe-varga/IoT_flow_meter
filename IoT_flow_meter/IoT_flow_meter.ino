@@ -1,4 +1,4 @@
-//#define DEBUG
+#define DEBUG
 //#define TEST
 
 #ifdef TEST
@@ -50,6 +50,8 @@ void setup() {
   #ifdef DEBUG
     // blink to signal initialisation
     pinMode(WHITE_LED, OUTPUT);
+    digitalWrite(WHITE_LED, HIGH);
+    STM32L0.stop(200);
     digitalWrite(WHITE_LED, LOW);
   
     // Debug over Serial
@@ -73,10 +75,12 @@ void setup() {
 
   // read battery, and hang if it is below the undervoltage threshold
   battery = readBattery();
-  if(battery < 2.245){
-    STM32L0.stop(30 * 60 * 1000);
-    STM32L0.reset();
-  }
+  #ifndef DEBUG
+    if(battery < 2.245){
+      STM32L0.stop(30 * 60 * 1000);
+      STM32L0.reset();
+    }
+  #endif
   
   // set power scheme for first ever cycle
   updatePowerScheme(); 
